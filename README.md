@@ -12,4 +12,9 @@
 - Tri par genre
 
 ## TO DO LIST :
-- 
+- Tri automatique par genre
+- Choix + Gestion des imports de playlists dans Tidal
+
+## Idea
+- Facilité le tri par mix ?
+- Créer un tri hybrid -> Genre + mix + merge ?
