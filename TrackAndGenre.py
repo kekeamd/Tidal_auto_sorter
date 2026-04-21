@@ -85,6 +85,7 @@ class TrackAndGenre():
                 raise RuntimeError(f"TrackAndGenre : _get_genre_of_track -> Problème avec la demande API (track : {track.id}) (status_code : {resp.status_code})\n{resp.json()}")
             else:
                 print(f"Info : Le titre ({track.id} : {track.name} - {track.artist.name}) n'a visiblement pas de genre") if self._Console else None
+                success = False
         else:
             datas = resp.json()["included"]
             for i in range (len(datas)):
@@ -105,7 +106,8 @@ class TrackAndGenre():
         print("Récupération des genres des musiques :") if self._Console else None
         for track in self._tracks_and_genre.keys():
             print(f"{i} : Traitement de la piste : {track.name} - {track.artist.name}") if self._Console else None
-            prob.append(track) if not (self._get_genre_of_track(track)) else None
+            if not self._get_genre_of_track(track):
+                prob.append(track)
             i+=1
     
     # Affiche le titre et les genres d'une piste
