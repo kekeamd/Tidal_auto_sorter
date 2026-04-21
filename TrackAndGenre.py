@@ -99,12 +99,13 @@ class TrackAndGenre():
     
 
     # Fonction qui récupère les genres de nos tracks
-    def load_all_genres(self) -> None:
+    # prob : liste des tracks qui n'ont pas pu être traité [PARAMETRE I/O] ! PAS DE RECUPERATION SI VIDE
+    def load_all_genres(self, prob : list[tidalapi.Track] = []) -> None:
         i = 0
         print("Récupération des genres des musiques :") if self._Console else None
         for track in self._tracks_and_genre.keys():
             print(f"{i} : Traitement de la piste : {track.name} - {track.artist.name}") if self._Console else None
-            self._get_genre_of_track(track)
+            prob.append(track) if not (self._get_genre_of_track(track)) else None
             i+=1
     
     # Affiche le titre et les genres d'une piste
@@ -135,15 +136,18 @@ class TrackAndGenre():
     
     # Fonction qui renvoie la liste des pistes en fonction de leurs genres
     # genres : la liste des genres demandé
-    # HaveAll : paramètre restrictif, demande la nécessité d'avoir tous les genres fournis
-    def get_tracks_of_genres(self,genres : list[str], HaveAll : bool = False) -> list[tidalapi.Track]:
+    # NbGenreSim : paramètre donnant le nombre de genre en commun que l'on souhaite
+    def get_tracks_of_genres(self,genres : list[str], NbGenreSim : int = 1) -> list[tidalapi.Track]:
         res = []
         for genre in genres:
             utils.appendList(res,self.get_tracks_of_genre(genre),True)
-        if HaveAll:
-            for track in res:                                                   # Dans le cas ou on a HaveAll=True, on supprime tout les titres qui n'ont pas tout les genres
-                if not (utils.Include(genres,self._tracks_and_genre[track])):
-                    res.pop(track)
+        if NbGenreSim:
+            toDel = []
+            for i in range(len(res)-1,0,-1):                                                   # Dans le cas ou on a NbGenreSim=-1, on supprime tout les titres qui n'ont pas tout les genres
+                if ((len(genres)>=NbGenreSim) and (len(utils.Intersection(genres,self._tracks_and_genre[res[i]])) < NbGenreSim)) or (NbGenreSim==-1 and utils.Include(genres,self._tracks_and_genre[res[i]])):
+                    toDel.append(i)
+            for i in toDel:
+                res.pop(i)
         return res
     
     

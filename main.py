@@ -1,17 +1,17 @@
+# Project import
 from utils import *
 from playFunctions import *
 from TrackAndGenre import TrackAndGenre
 from Coherence import Coherence
+from gestionCoherence import GestionCoherence
 
+# Library import
 from pathlib import Path
 from random import shuffle
-
 import tidalapi
 from tidalapi import Quality
-
 import requests
 import logging
-
 import json
 
 DEV : bool = True                                           # Affichage Dev
@@ -19,6 +19,8 @@ TIDALAPI = {'clientid' : "", 'clientsecret' : ""}           # Identifiants Tidal
 TIDAL_API_URL = "https://openapi.tidal.com/v2"              # URL pour les requests à l'API v2 de tidal (Utiliser notemment pour le genre)
 BYPASS_API = True                                           # Evite l'obligation de configurer les infos api (CLIENT ID & CLIENT SECRET) 
 # Identifiants TIDALAPI Inutile ?
+
+data = {'playlists' : [], 'typeSort' : -1, 'AfficheConsole' : True, 'typeGenreSort' : -1, 'genresList' : [], 'coherence' : Coherence.MOYEN.value}
 
 #======================================================================================================
 #==================================================================================FONCTION A DEPLACER
@@ -103,7 +105,6 @@ Go do somes tests :)
 #================================================================================== CHOIX
 #======================================================================================================
 
-data = {'playlists' : [], 'typeSort' : -1, 'AfficheConsole' : True, 'typeGenreSort' : -1, 'genresList' : [], 'coherence' : Coherence.MOYEN.value}
 
 session.audio_quality = Quality.hi_res_lossless
 playlists : list[tidalapi.Playlist] = session.user.playlists()
@@ -111,6 +112,9 @@ dataPath : Path = userPath / "lastSession.json"
 toSort : list[tidalapi.Playlist] = []
 useLast : bool = False
 Console : bool = data["AfficheConsole"]
+calculatedPlaylist = []                 # Liste regroupant toutes les playlists calculé
+unrated = []                            # Liste regroupant les titres qui ont posé problème
+LittePlaylist = []                      # Liste regroupant les titres des playlists trop petites
 if Path(dataPath).is_file():
     f = open(dataPath,"r")
     data = json.load(f)
@@ -229,6 +233,8 @@ if not useLast:                                                     # On demande
 #======================================================================================================
 #==================================== RAPPEL DES CHOIX ================================================
 
+clear()
+
 if useLast:
     Console = data["AfficheConsole"]
     sort = data["typeSort"]
@@ -244,9 +250,8 @@ else:
     f = open(dataPath,"w")
     json.dump(data,f,indent=4)
     f.close()
-coherence = Coherence(data["coherence"])
+coherence = GestionCoherence(userPath,Coherence(data["coherence"]),DEV)
 
-clear()
 
 print("===============================")
 print("Rappel :")
@@ -266,7 +271,6 @@ if input("Appuyer sur Entrer pour continuer, n'importe quel touche pour sortir "
 if sort==1 or sort==2:
     print("Vous avez choisi la méthode de tri par mix de chaque piste !")
     MyPlaylists =[]
-    unrated = []
     for p in toSort:                                                        # Boucle de récupération des mix intersection
         
         myTracks = p.tracks()                                               # Récupération des pistes
@@ -288,11 +292,12 @@ if sort==1 or sort==2:
     print("")
     unuszed = []
     if saisie=='2':
-        finalPlaylist = MegePlaylistByIntersect(MyPlaylists,unuszed,1,40,2,Console)
+        abso = coherence.getAbsorbtion()
+        calculatedPlaylist = MegePlaylistByIntersect(MyPlaylists,unuszed,coherence.getintersectionMinimal(),abso[0],abso[1],Console)
     else:
-        finalPlaylist = MyPlaylists
-    listMin = 3
-    LittePlaylist = []
+        calculatedPlaylist = MyPlaylists
+    listMin = coherence.getlisteMinimal()
+    
 
 
 
@@ -300,44 +305,10 @@ if sort==1 or sort==2:
     for l in unuszed:                                                                               # Gestion des playlists non traitées
         appendList(LittePlaylist,l,True)
 
-    appendList(LittePlaylist,removeToLittle(finalPlaylist,listMin),True)                                 # Envoie des playlists trop petite dans LittlePlaylist
+    appendList(LittePlaylist,removeToLittle(calculatedPlaylist,listMin),True)                                 # Envoie des playlists trop petite dans LittlePlaylist
 
-    supprDuplicatedPlaylist(finalPlaylist)                                                          # Suppression des duplicata
+    supprDuplicatedPlaylist(calculatedPlaylist)                                                          # Suppression des duplicata
 
-    deleteEmptyPlaylist(finalPlaylist)                                                              # Suppresion des playlists vides
-
-
-    Tmax=0
-    print("")
-    print("")
-    w=0
-    print("Size of finalPlaylist : ",len(finalPlaylist),"\n")
-    for i in range(len(finalPlaylist)):
-        if len(finalPlaylist[i])==0:
-            print(f"Playlist {i} vide")
-        else:
-            print("=====================================")
-            print(f"Playlist numéro {i}, Taille : ",len(finalPlaylist[i]))
-            print("===============")
-            for e in finalPlaylist[i]:
-                print(e.name)
-            if len(finalPlaylist[i])>Tmax:
-                Tmax = len(finalPlaylist[i])
-            w+=1
-    print("Nombre de playlists différentes : ",w)
-    print("Taille de la plus grande playlist : ",Tmax)
-    print("")
-    print("=====================================")
-    print(f"Voici les pistes qui n'ont pas pu être traitées (size : {len(unrated)}) : ")
-    print("===============")
-    for e in unrated:
-        print(e.name)
-    print("")
-    print("=====================================")
-    print(f"Voici le merge des playlists non traitées (size : {len(LittePlaylist)}) : ")
-    print("===============")
-    for e in LittePlaylist:
-        print(e.name)
 #======================================================================================================
 
 elif sort == 3:
@@ -406,8 +377,9 @@ elif sort == 3:
             print("\n")
         MyPlaylist = TrackAndGenre(track_url,header,Console=Console,DEV=DEV)
         MyPlaylist.set_tracks_without_playlists(all_tracks)
-        MyPlaylist.load_all_genres()
+        MyPlaylist.load_all_genres(unrated)
         all_genres = MyPlaylist.get_all_genres()
+        genreList = [[]]
         # ===========================================================================
         # ========================= CHOIX AUTO/MANUEL ===============================
         clear()
@@ -415,6 +387,12 @@ elif sort == 3:
             print("===============================")
             print("Utilisation des anciens paramètres !")
             print("===============================")
+            genreList = data["genreList"]
+            affiche_genre_selection(genreList,"Listes des selections : ")
+            saisie = input("Appuyer sur X pour quitter, n'importe quel autre saisie pour continuer : ")
+            if saisie.lower() == 'x':
+                print("Au revoir")
+                exit()
         else:
             while True:
                 print("=====================================")
@@ -441,7 +419,6 @@ elif sort == 3:
                     print(saisie) if DEV else None
             clear()
             nextStep = False
-            genreList = [[]]
             while True:
                 if data['typeGenreSort'] == 1:                                  # Tri automatique
                     print("Non implémenté -> W.I.P.")
@@ -511,5 +488,46 @@ elif sort == 3:
             f.close()
         # ===========================================================================
         # ============================= TRI PAR GENRE ===============================
-        print("W.I.P.")
+        for l in genreList:
+            calculatedPlaylist.append(MyPlaylist.get_tracks_of_genres(l,coherence.getNbrGenres()))
+        # ===========================================================================
 
+
+# ===========================================================================
+# ============================= GESTION PLAYLIST ============================
+Tmax=0
+clear()
+deleteEmptyPlaylist(calculatedPlaylist)                             # Supprime les playlists vides
+print("=====================================")
+print("Size of calculatedPlaylist : ",len(calculatedPlaylist),"\n")
+for i in range(len(calculatedPlaylist)):
+    if len(calculatedPlaylist[i])==0:
+        print(f"\nPlaylist {i} vide")
+    else:
+        print("\n===============")
+        print(f"Playlist numéro {i}, Taille : ",len(calculatedPlaylist[i]))
+        print("===============")
+        for e in calculatedPlaylist[i]:
+            print(e.name)
+        if len(calculatedPlaylist[i])>Tmax:
+            Tmax = len(calculatedPlaylist[i])
+print("\n===============")
+print("Nombre de playlists différentes : ",len(calculatedPlaylist))
+print("Taille de la plus grande playlist : ",Tmax)
+if len(calculatedPlaylist)==0:
+    print("Cause possible de Playlists vides : ")
+    print(f"     - Condition trop exigentes (ex : +5 genres par selections et coherence en {coherence.getCoherence().name})")
+    print("     - Pas assez de titre dans les playlists en entrée")
+print("===============")
+print("")
+print("=====================================")
+print(f"Voici les pistes qui n'ont pas pu être traitées (size : {len(unrated)}) : ")
+print("===============")
+for e in unrated:
+    print(e.name)
+print("")
+print("=====================================")
+print(f"Voici le merge des playlists non traitées (size : {len(LittePlaylist)}) : ")
+print("===============")
+for e in LittePlaylist:
+    print(e.name)
