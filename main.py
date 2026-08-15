@@ -143,32 +143,9 @@ if Path(dataPath).is_file():
             print("Mauvaise saisie !")
 
 if not useLast:                                                     # On demande des choix tout neufs
-    affichePlaylist(playlists)
-    saisie : str = input("Lesquels voulez-vous triez ? (Nombre OU 'X' pour finir la saisie)")
-    while(True):
-        clear()
-        try:
-            if (int(saisie)<len(playlists) and int(saisie)>=0) and not(int(saisie) in toSort):
-                if not playlists[int(saisie)] in toSort:
-                    toSort.append(playlists[int(saisie)])
-                    print("====================")
-                    print(f"Vous venez de choisir la playlist {saisie} : {toSort[len(toSort)-1].name}")
-                    print("====================")
-                else:
-                    print("====================")
-                    print("Playlist déjà entrée")
-                    print("====================")
-            else:
-                print("Vous avez entrez un nombre éronné")
-        except:
-            if saisie.lower()=='x':
-                break
-            print("Veuillez entrer un nombre !!")
-        affichePlaylist(playlists,"Voici vos playlist : " )
-        affichePlaylist(toSort,"Voici vos playlist qui vont être triées :" )
-        saisie = input("Lesquels voulez-vous triez ? (Nombre OU 'X' pour finir la saisie)")
+    toSort = choice(playlists,"Liste de vos playlists (Choisissez lesquels trier) : ",-1,True,None,True)
     clear()
-    affichePlaylist(toSort,"Voici les playlist qui vont être triées :" )
+    afficheListe(toSort,"Voici les playlist qui vont être triées :" )
 
     while True:
         print("===============================")
@@ -263,6 +240,8 @@ if input("Appuyer sur Entrer pour continuer, n'importe quel touche pour sortir "
     print("Au revoir !")
     exit()
 
+calculatedPlaylist : list[tidalapi.Track] = None
+
 #======================================================================================================
 
 #======================================================================================================
@@ -313,7 +292,7 @@ if sort==1 or sort==2:
 
 elif sort == 3:
     # TIDALAPI = {'clientid' : "", 'clientsecret' : ""} RAPPEL STRUCTURE
-    if (TIDALAPI['clientid'] =="" or TIDALAPI['clientsecret']=="") and not BYPASS_API:      # Gestion Identifiants API
+    if (TIDALAPI['clientid'] =="" or TIDALAPI['clientsecret']=="") and not BYPASS_API:      # Gestion Identifiants API /!\ USELESS /!\
         clear()
         print("Information d'API non renseigné !")
         print("Il est nécessaire d'avoir des indentifiants TIDAL API pour utiliser le tri par genre !")
@@ -504,12 +483,8 @@ for i in range(len(calculatedPlaylist)):
     if len(calculatedPlaylist[i])==0:
         print(f"\nPlaylist {i} vide")
     else:
-        print("\n===============")
-        print(f"Playlist numéro {i}, Taille : ",len(calculatedPlaylist[i]))
-        print("===============")
-        for e in calculatedPlaylist[i]:
-            print(e.name)
-        if len(calculatedPlaylist[i])>Tmax:
+        afficheListe(calculatedPlaylist[i],f"Playlist numéro {i}, Taille : {len(calculatedPlaylist[i])}",index=False)
+        if len(calculatedPlaylist[i])>Tmax: # Gestion des infos ! 
             Tmax = len(calculatedPlaylist[i])
 print("\n===============")
 print("Nombre de playlists différentes : ",len(calculatedPlaylist))
@@ -524,10 +499,10 @@ print("=====================================")
 print(f"Voici les pistes qui n'ont pas pu être traitées (size : {len(unrated)}) : ")
 print("===============")
 for e in unrated:
-    print(e.name)
+    print(e.name,e.artist.name)
 print("")
 print("=====================================")
 print(f"Voici le merge des playlists non traitées (size : {len(LittePlaylist)}) : ")
 print("===============")
 for e in LittePlaylist:
-    print(e.name)
+    print(e.name,e.artist.name)

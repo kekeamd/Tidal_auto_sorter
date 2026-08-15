@@ -9,18 +9,18 @@ import requests
 # unrated (list[tidalapi.Track]) : Liste des pistes pour lesquelles la récupération du mix à échoué [Paramère Entrée/Sortie] ! Pas de récupération si non renseigné !
 # Console (bool) : Affiche ou non les étapes du traitement dans la console
 # IndexMax (int) : Est le nombre de titre à traiter maximum, par défaut il traitera toute la playlist
-def recuperationMixOfPlaylists(tracks : tidalapi.Track,unrated : list[tidalapi.Track] = [], Console : bool = True, indexMax : int = -1) -> list[list[tidalapi.Track]]:
+def recuperationMixOfPlaylists(tracks : list[tidalapi.Track], unrated : list[tidalapi.Track] = [], Console : bool = True, indexMax : int = -1) -> list[list[tidalapi.Track]]:
     iMax = indexMax if indexMax!=-1 else len(tracks)
     res : list[list[tidalapi.Track]] = []
     for i in range(iMax):
         try:
-            print(f"{i} : {tracks[i].name}") if Console else None
+            print(f"{i} : {tracks[i].name} - {tracks[i].artist.name}") if Console else None
             mix : tidalapi.mix = tracks[i].get_radio_mix()
             res.append(mix.items())
             # res.append(tracks[i].get_track_radio()) # Non fonctionnel
         except:
             unrated.append(tracks[i])
-            print(f"Erreur lors du traitement de la piste {tracks[i].name}") if Console else None
+            print(f"Erreur lors du traitement de la piste {tracks[i].name} - {tracks[i].artist.name}") if Console else None
     return res
 
 # Fonction qui prends une liste de mix (list[list[tidalapi.Track]])

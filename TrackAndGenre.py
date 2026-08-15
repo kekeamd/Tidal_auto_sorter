@@ -92,7 +92,7 @@ class TrackAndGenre():
                 try:
                     genres.append(datas[i]["attributes"]["genreName"])
                 except Exception as e:
-                    print(f"TrackAndGenre : _get_genre_of_track -> Problème lors de la récupération du genre de la piste : {track.name} - {track.artists}")
+                    print(f"TrackAndGenre : _get_genre_of_track -> Problème lors de la récupération du genre de la piste : {track.name} - {track.artist.name}")
                     print(e) if self._DEV else None
                     success = False
         self._tracks_and_genre[track] = genres

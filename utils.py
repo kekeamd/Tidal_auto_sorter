@@ -13,15 +13,6 @@ def minList(L1 : list[any] , L2 : list[any]) -> list[any]:
 def maxList(L1 : list[any] , L2 : list[any]) -> list[any]:
     return L1 if len(L1)>=len(L2) else L2
 
-# Affiche les noms
-def affichePlaylist(p : list[tidalapi.playlist.Playlist],message :str ="Voici vos playlist : "):
-    print("===============")
-    print(message)
-    print("===============")
-    for i in range(len(p)):
-        print(f"{i} : {p[i].name}")
-    print("===============")
-
 # Renvoie l'intersection de deux listes de Track
 def IntersectionTrackList(L1 : list[tidalapi.Track],L2 : list[tidalapi.Track],WithArtist : bool = True):
     res = []
@@ -96,12 +87,55 @@ def printSortType(type : int = -1):
             print("2 : Tri par mix + merge")
             print("3 : Tri par genre (Comparaison de genre entre toutes les pistes)")
 
-# Affiche proprement une liste de str
-# message, messsage à affichier avant (Par défaut "Genres : ")
-def afficheListe(lG : list[str], message : str = "Elements : "):
+# Affiche proprement une liste
+# message, messsage à affichier avant (Par défaut "Elements : ")
+def afficheListe(l : list[str], message : str = "Elements : ", tab : bool = True, index : bool = False, short : bool = True):
+    itemType = None
+    print("====================")
+    print(message) # Message de devanture de liste
+    print("====================")
+    accepted=[tidalapi.Track,tidalapi.playlist.Playlist,tidalapi.playlist.UserPlaylist,tidalapi.artist,int,str,list]
+    itemType = type(l[0])
+    if not (itemType in accepted):
+        raise(TypeError(f"utils.choice : le type {itemType} n'est pas pris en charge !({accepted})"))
+    for i in range(len(l)):
+        e = l[i] # Element qu'on regarde
+        print("     ",end="") if tab else None
+        print(f"{i} - ",end="") if index else print("- ",end="")
+        if type(e)!=itemType:
+            raise(TypeError(f"Un élément de la liste à un type étrange (Ne correspond pas au reste : {type(e)} ==> {itemType})"))
+        if itemType == tidalapi.Track: # Cas Track
+            print(f"{e.full_name} - {e.artist.name}")
+        elif itemType == tidalapi.playlist.Playlist or itemType == tidalapi.playlist.UserPlaylist: # Cas Playlist
+            if short: # Affichage COURT des playlists : Nom sans les titres
+                print(f"{e.name} - {e.num_tracks}")
+            else: # Affichage LONG des playlists : Avec les titres
+                affichePlaylist(e,f"{e.name} - {e.num_tracks}",True,False)
+        elif itemType == tidalapi.artist.Artist: # Cas Artist
+            print(f"{e.name}")
+        else:
+            print(f"{e}")
+    print("====================")
+
+# Fonction qui permet d'afficher les éléments d'une playlist
+# Message : Le nom de la Playlist par défaut
+# tab : Une tabulation devant les titres ?
+# index : Les titres doivent être indexé ou pas ?
+def affichePlaylist(p : tidalapi.playlist.Playlist | tidalapi.playlist.UserPlaylist, message : str = None, tab : bool = True, index : bool = True):
+    if type(p) != tidalapi.playlist.Playlist and type(p) != tidalapi.playlist.UserPlaylist:
+        raise(TypeError(f"utils.choice : le type {type(p)} n'est pas pris en charge !(tidalapi.playlist.Playlist ou tidalapi.playlist.UserPlaylist)"))
+    if message == None:
+        message = f"{p.name} - {p.num_tracks}"
+    TrackList = p.tracks()
+    print("====================")
     print(message)
-    for i in range(len(lG)):
-        print(f"{i} : {lG[i]}")
+    print("====================")
+    for i in range(len(TrackList)):
+        e = TrackList[i]
+        print("     ",end="") if tab else None
+        print(f"{i} - ",end="") if index else print("- ",end="")
+        print(f"{e.full_name} - {e.artist.name}")
+    print("====================")
 
 # Renvoie l'intersection de deux listes de type "primitf"
 def Intersection(L1 : list[str | int] ,L2 : list[str | int]) -> list[str | int]:
@@ -147,4 +181,65 @@ def affiche_data(data : dict,savedPlaylistsNames : list[str]) -> None:
                 pass
         print("===============================")
     print("")
-    affichePlaylist(savedPlaylistsNames,"Voici les playlist qui vont être triées :" )
+    afficheListe(savedPlaylistsNames,"Voici les playlist qui vont être triées :",False,False)
+
+
+
+
+# Permet de faire une demande de selection à l'utilisateur à partir d'une liste
+# l : La liste des élément dans lesquels il faut faire la séléction
+# maxItems : Le nombre maximum d'items à choisir (-1 pour aucune limite)
+# OriginalItems : Paramètre selon lequel on renvoie une liste de nombre (Les éléments séléctionner) ou la liste des éléments séléctionner
+# default : Element à mettre dans la liste final si rien n'est choisi /!\ N'accepte pas les éléments qui ne sont pas dans la liste de base /!\
+def choice(l: list, message : str = "Liste d'éléments à choisir", maxItems : int = -1, OriginalItems : bool = False, default : any | None = None, short : bool = False) -> (list | list[int]):
+    itemType = None
+    if len(l)==0 or maxItems==0:
+        return []
+    accepted=[tidalapi.Track,tidalapi.playlist.Playlist,tidalapi.playlist.UserPlaylist,tidalapi.artist,int,str,list]
+    itemType = type(l[0])
+    if not (itemType in accepted):
+        raise(TypeError(f"utils.choice : le type {itemType} n'est pas pris en charge !({accepted})"))
+    choosed : list[int] = []
+    saisie=None
+    while((saisie!='N' and saisie!='S' and saisie != 'X' and saisie !='') and (maxItems==-1 or (maxItems>=0 and maxItems>len(choosed)))):
+        clear()
+        print(message,"\n")
+        afficheListe(l,message,False,True,short) # On affiche les éléments qui PEUVENT être SELECTIONNER
+        if len(choosed)>0: # On affiche les éléments déjà SELECTIONNER
+            print("\nElements séléctionner :\n")
+            for e in choosed:
+                print(f"- {e}")
+        print("\nVeuillez choisir les éléments que vous souhaitez séléctionner !")
+        print("Format accepté : ")
+        print("- numero_item (Permet d'ajouter UN élément à la selection)")
+        print("- numero_item,numero_item... (Permert d'ajouter une liste d'éléments à la selection)")
+        print("- 'N' | 'S' | 'X' | '' (Permet de terminer la saisie ) /!\\ NE PAS METTRE LES ' /!\\")
+        saisie = input("\nVotre saisie : ")
+        saisie.upper()
+        for e in saisie.split(','):
+            is_number=True
+            try:
+                e = int(e.strip())
+            except:
+                is_number=False # On a pas saisie un nombre ?
+            if is_number:
+                if not (e in choosed) and e<len(l):
+                    if (maxItems==-1 or (maxItems>=0 and maxItems>len(choosed))):
+                        choosed.append(e)
+                    else:
+                        pass # Nombre maximum de choix atteint !
+                else:
+                    print(f"Elément {e} déjà dans la saisie !")
+        choosed.sort()
+    res = []
+    if len(choosed)==0 and default!=None:
+        try:
+            choosed.append(l.index(default))
+        except:
+            pass
+    if OriginalItems: # Liste d'éléments
+        for i in choosed:
+            res.append(l[i])
+    else:             # Liste d'int
+        res=choosed
+    return res
