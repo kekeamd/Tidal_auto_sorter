@@ -1,6 +1,9 @@
 import os
 import tidalapi
 import Coherence
+from random import choice as randchoose
+from random import randint
+import requests as rq
 
 def clear():
     os.system("cls")
@@ -90,9 +93,11 @@ def printSortType(type : int = -1):
 # Affiche proprement une liste
 # message, messsage à affichier avant (Par défaut "Elements : ")
 def afficheListe(l : list[str], message : str = "Elements : ", tab : bool = True, index : bool = False, short : bool = True):
+    if len(l)==0:
+        return None
     itemType = None
     print("====================")
-    print(message) # Message de devanture de liste
+    print(message) #============================== Message de devanture de liste
     print("====================")
     accepted=[tidalapi.Track,tidalapi.playlist.Playlist,tidalapi.playlist.UserPlaylist,tidalapi.artist,int,str,list]
     itemType = type(l[0])
@@ -100,20 +105,27 @@ def afficheListe(l : list[str], message : str = "Elements : ", tab : bool = True
         raise(TypeError(f"utils.choice : le type {itemType} n'est pas pris en charge !({accepted})"))
     for i in range(len(l)):
         e = l[i] # Element qu'on regarde
-        print("     ",end="") if tab else None
-        print(f"{i} - ",end="") if index else print("- ",end="")
-        if type(e)!=itemType:
+        if itemType != list:
+            print("     ",end="") if tab else None
+            print(f"{i} - ",end="") if index else print("- ",end="")
+        if type(e)!=itemType: #====================================================================== Vérification d'une incohérence                                                                     
             raise(TypeError(f"Un élément de la liste à un type étrange (Ne correspond pas au reste : {type(e)} ==> {itemType})"))
-        if itemType == tidalapi.Track: # Cas Track
+        
+        if itemType == tidalapi.Track: #============================================================= Cas Track
             print(f"{e.full_name} - {e.artist.name}")
-        elif itemType == tidalapi.playlist.Playlist or itemType == tidalapi.playlist.UserPlaylist: # Cas Playlist
+        elif itemType == tidalapi.playlist.Playlist or itemType == tidalapi.playlist.UserPlaylist: #= Cas Playlist
             if short: # Affichage COURT des playlists : Nom sans les titres
                 print(f"{e.name} - {e.num_tracks}")
             else: # Affichage LONG des playlists : Avec les titres
                 affichePlaylist(e,f"{e.name} - {e.num_tracks}",True,False)
-        elif itemType == tidalapi.artist.Artist: # Cas Artist
+        
+        elif itemType == tidalapi.artist.Artist: #=================================================== Cas Artist
             print(f"{e.name}")
-        else:
+        
+        elif itemType == list: #===================================================================== Cas Liste
+            afficheListe(e,f"Liste numéro {i}")
+        
+        else: #====================================================================================== Autres cas
             print(f"{e}")
     print("====================")
 
@@ -191,7 +203,14 @@ def affiche_data(data : dict,savedPlaylistsNames : list[str]) -> None:
 # maxItems : Le nombre maximum d'items à choisir (-1 pour aucune limite)
 # OriginalItems : Paramètre selon lequel on renvoie une liste de nombre (Les éléments séléctionner) ou la liste des éléments séléctionner
 # default : Element à mettre dans la liste final si rien n'est choisi /!\ N'accepte pas les éléments qui ne sont pas dans la liste de base /!\
-def choice(l: list, message : str = "Liste d'éléments à choisir", maxItems : int = -1, OriginalItems : bool = False, default : any | None = None, short : bool = False) -> (list | list[int]):
+# min : nombre d'éléments minimum à sélectionner
+# infoSupp : Message à marquer en supplément
+def choice(l: list, message : str = "Liste d'éléments à choisir",
+            maxItems : int = -1,
+            OriginalItems : bool = False,
+            default : any | None = None,
+            short : bool = False,
+            minItems : bool = 1) -> (list | list[int]):
     itemType = None
     if len(l)==0 or maxItems==0:
         return []
@@ -200,10 +219,9 @@ def choice(l: list, message : str = "Liste d'éléments à choisir", maxItems : 
     if not (itemType in accepted):
         raise(TypeError(f"utils.choice : le type {itemType} n'est pas pris en charge !({accepted})"))
     choosed : list[int] = []
-    saisie=None
-    while((saisie!='N' and saisie!='S' and saisie != 'X' and saisie !='') and (maxItems==-1 or (maxItems>=0 and maxItems>len(choosed)))):
+    check=None
+    while((check!='N' and check!='S' and check != 'X' and check !='') and (maxItems==-1 or (maxItems>=0 and maxItems>len(choosed))) or (len(choosed)<minItems)):
         clear()
-        print(message,"\n")
         afficheListe(l,message,False,True,short) # On affiche les éléments qui PEUVENT être SELECTIONNER
         if len(choosed)>0: # On affiche les éléments déjà SELECTIONNER
             print("\nElements séléctionner :\n")
@@ -215,13 +233,13 @@ def choice(l: list, message : str = "Liste d'éléments à choisir", maxItems : 
         print("- numero_item,numero_item... (Permert d'ajouter une liste d'éléments à la selection)")
         print("- 'N' | 'S' | 'X' | '' (Permet de terminer la saisie ) /!\\ NE PAS METTRE LES ' /!\\")
         saisie = input("\nVotre saisie : ")
-        saisie.upper()
         for e in saisie.split(','):
             is_number=True
             try:
                 e = int(e.strip())
             except:
                 is_number=False # On a pas saisie un nombre ?
+                check = e.upper()
             if is_number:
                 if not (e in choosed) and e<len(l):
                     if (maxItems==-1 or (maxItems>=0 and maxItems>len(choosed))):
@@ -243,3 +261,87 @@ def choice(l: list, message : str = "Liste d'éléments à choisir", maxItems : 
     else:             # Liste d'int
         res=choosed
     return res
+
+# Fonction qui récupére les genres d'une piste
+# Ajout la piste à notre liste
+# track : la musique dont il faut récupéré les genres
+# Renvoie True si la récupération à réussi
+def get_genre_of_track(track : tidalapi.Track,track_url : str,header : str, Console = True, DEV = False) -> bool:
+    genres = []
+    url = f"{track_url}{track.id}?include=genres"
+    resp = rq.get(url,headers=header,timeout=30)
+    if resp.status_code != 200:
+        if resp.status_code !=404:
+            raise RuntimeError(f"get_genre_of_track -> Problème avec la demande API (track : {track.id}) (status_code : {resp.status_code})\n{resp.json()}")
+        else:
+            print(f"Info : Le titre ({track.id} : {track.name} - {track.artist.name}) n'a visiblement pas de genre") if Console else None
+    else:
+        datas = resp.json()["included"]
+        for i in range (len(datas)):
+            try:
+                genres.append(datas[i]["attributes"]["genreName"])
+            except Exception as e:
+                print(f"TrackAndGenre : _get_genre_of_track -> Problème lors de la récupération du genre de la piste : {track.name} - {track.artist.name}")
+                print(e) if DEV else None
+    return genres
+
+# Fonction qui permet de décider d'un nom à partir d'une liste de musique (tidalapi.Track)
+# NameType = 
+# - 0 -> Générer à partir des genres
+# - 1 -> Générer à partir des artistes
+def generateName(l : list[tidalapi.Track],NameType : int, track_url : str,header : str, Console = True, DEV = False):
+    name = ""
+    emptyName = ["Playlist vide", "Playlist du néant", "Playlist du vide", "Playlist fantôme", "Playlist en apesanteur", "Playlist zéro son", "Playlist du silence", "Playlist paumée", "Playlist orpheline", "Playlist désertée", "Playlist 404", "Playlist mystère", "Playlist sans âme", "Playlist qui attend", "Playlist en jachère", "Playlist oubliée", "Playlist coquille vide", "Playlist creuse", "Playlist en sommeil", "Playlist muette"]
+    if len(l)==0:
+        name = randchoose(emptyName)
+    else:
+        if NameType == 0: # Genre
+            genreFinal=[]
+            genresD = {}
+            genresL = []
+            for track in l:                                                     # Set le nombre d'apparition
+                print(f"Récupération des genres de {track.name} - {track.artist.name}") if Console else None
+                TrackGenre = get_genre_of_track(track,track_url,header,Console,DEV)
+                for g in TrackGenre:
+                    if g in genresL:
+                        genresD[g] = genresD[g]+1
+                    else:
+                        genresL.append(g)
+                        genresD[g] = 1
+            for i in range (min(5,len(genresL))): # Vérif max ?
+                max=0
+                Gmax = None
+                for g in genresD.keys():
+                    if g in genresL and genresD[g]>max:
+                        max = genresD[g]
+                        Gmax = g
+                genreFinal.append(Gmax)
+                genresL.remove(Gmax)
+            for e in genreFinal:
+                name += f"{e}, "
+            name = name[:-2]
+        elif NameType == 1: # Artistes
+            artFinal=[]
+            artD = {}
+            artL = []
+            for track in l:                    # Set le nombre d'apparition
+                artistes = track.artists
+                for a in artistes:
+                    if a.name in artL:
+                        artD[a.name] = artD[a.name]+1
+                    else:
+                        artL.append(a.name)
+                        artD[a.name] = 1
+            for i in range (min(5,len(artL))): # Vérif max ?
+                max=0
+                Amax = None
+                for a in artD.keys():
+                    if a in artL and artD[a]>max:
+                        max = artD[a]
+                        Amax = a
+                artFinal.append(Amax)
+                artL.remove(Amax)
+            for e in artFinal:
+                name += f"{e}({artD[e] if DEV else None}), "
+            name = name[:-2]
+    return name

@@ -146,27 +146,25 @@ if not useLast:                                                     # On demande
     toSort = choice(playlists,"Liste de vos playlists (Choisissez lesquels trier) : ",-1,True,None,True)
     clear()
     afficheListe(toSort,"Voici les playlist qui vont être triées :" )
+    
 
+    types_tri = []
+    types_tri.append("Tri par mix de chaque piste (Verification de la présence des titres dans les mix de chaque piste)")
+    types_tri.append("Tri par mix + merge")
+    types_tri.append("Tri par genre (Comparaison de genre entre toutes les pistes)")
+    types_tri.append("Quitter")
     while True:
-        print("===============================")
-        print("Veuillez choisir une méthode de tri : ")
-        printSortType()
-        print("X : Quitter")
-        print("===============================")
-        saisie = input("Votre choix : ")
-        if saisie in ['1','2','3']:
-            sort = int(saisie)
-            saisie = input("Vous avez choisi la méthode de tri n°"+saisie+" ! Veuillez confirmer -> Entrer pour continuer ou 'N' pour changer de méthode : ")
+        saisie = choice(types_tri,"Veuillez choisir une méthode de tri (Par défaut -> 2) : ",1,False,2,True,0)
+        if saisie[0] in [1,2,3]:
+            sort = int(saisie[0])
+            saisie = input("Vous avez choisi la méthode de tri n°"+str(saisie[0])+" ! Veuillez confirmer -> Entrer pour continuer ou 'N' pour changer de méthode : ")
             if saisie.lower()!='n':
                 break
             else:
                 clear()
-        elif saisie.lower()=='x':
+        else:
             print("Au revoir !")
             exit()
-        else:
-            clear()
-            print("Mauvaise entrée. Veuillez entrer 1, 2 ou 3.")
 
     clear()
     while True:
@@ -418,9 +416,9 @@ elif sort == 3:
                         saisie = input("Votre choix : ")
                         try:
                             if saisie.lower() != "n" and saisie.lower() != 's':
-                                choice = all_genres[int(saisie)]
-                                if not choice in genreList[len(genreList)-1]: 
-                                    genreList[len(genreList)-1].append(choice)
+                                choix = all_genres[int(saisie)]
+                                if not choix in genreList[len(genreList)-1]: 
+                                    genreList[len(genreList)-1].append(choix)
                                 clear()
                             else:
                                 nextStep = True
@@ -496,13 +494,75 @@ if len(calculatedPlaylist)==0:
 print("===============")
 print("")
 print("=====================================")
-print(f"Voici les pistes qui n'ont pas pu être traitées (size : {len(unrated)}) : ")
-print("===============")
-for e in unrated:
-    print(e.name,e.artist.name)
+afficheListe(unrated,f"Voici les pistes qui n'ont pas pu être traitées (size : {len(unrated)}) : ")
 print("")
-print("=====================================")
-print(f"Voici le merge des playlists non traitées (size : {len(LittePlaylist)}) : ")
-print("===============")
-for e in LittePlaylist:
-    print(e.name,e.artist.name)
+print("=====================================\n")
+afficheListe(LittePlaylist,f"Voici le merge des playlists non traitées (size : {len(LittePlaylist)}) : ")
+
+input("Appuyer sur une touche pour continuer...")
+
+saisie=choice(playlists,"Voulez-vous supprimer des playlists ? (Ne rien mettre si vous ne voulez rien supprimer !)",short=True,minItems=0)
+
+toDel : list[tidalapi.playlist.UserPlaylist] = [playlists[i] for i in saisie]
+
+clear()
+if len(toDel)>0:
+    afficheListe(toDel,"Playlists qui ont demandé à être supprimé :")
+    input("Appuyer sur une touche pour continuer...")
+    saisie = choice(["Quitter","Continuer ET supprimer les playlists","Continuer ET NE PAS supprimer les playlists"],"Veuillez choisir que faire",1,minItems=1)
+
+    saisie = saisie[0]
+    print(saisie)
+    if saisie == 0:
+        exit(0)
+    elif saisie == 1:
+        for e in toDel:
+            name = e.name
+            if e.delete():
+                print(f"Playlist {name} supprimé avec succès") if Console else None
+            else:
+                print(f"Erreur lors de la suppression de la playlist : {e.name}!") if Console else None
+
+saisie = None
+while saisie == None:
+    saisie = choice(calculatedPlaylist,"Veuillez choisir quel playlists il faut importer dans votre bibliothèque musicale : ",minItems=0)
+    if len(saisie)==0:
+        saisie = choice(["Refaire la séléction","Quitter"],"Aucune playlist n'a été sélectionner",1)
+        if saisie[0] == 0:
+            saisie = None
+        else:
+            print("Au revoir !")
+            exit(0)
+
+choosedPlaylist = []
+for i in saisie:
+    choosedPlaylist.append(calculatedPlaylist[i])
+
+clear()
+afficheListe(choosedPlaylist,"Voici les playlists qui vont être importer : ")
+input("Appuyer sur une touche pour continuer...")
+saisie = choice(["Continuer","Annuler"],"Que voulez-vous faire ?",1)
+if saisie[0] == 1:
+    print("Au revoir !")
+    exit(0)
+
+Choix = ["Générer à partir partir Genre (Lent)","Générer à partir des noms d'artistes (Rapide)","Pas de nom (Indexation)"]
+typeName = choice(Choix,"Comment voulez-vous que les noms des playlists soient générer (Par défaut 1)",1,False,Choix[1],True,0)
+
+names = []
+for i in range(len(choosedPlaylist)):
+    pla = choosedPlaylist[i]
+    if typeName[0]!=2:
+        names.append(generateName(pla,typeName[0],f"{TIDAL_API_URL}/tracks/",{"Authorization": f"Bearer {session.access_token}","Content-Type": "application/vnd.api+json",},Console,DEV))
+    else:
+        names.append(f"Playlist {i+1}")
+
+if len(names)!=len(choosedPlaylist):
+    raise(ValueError(f"La liste names et la liste choosedPlaylist n'ont pas la même taille !! (names : {len(names)}, choosedPlaylist : {len(choosedPlaylist)})"))
+for i in range(len(choosedPlaylist)):
+    ids = []
+    for t in choosedPlaylist[i]:
+        ids.append(t.id)
+    created_playlist : tidalapi.playlist.UserPlaylist = session.user.create_playlist(names[i],"Playlist générer par tidal_auto_sorter : https://github.com/kekeamd/Tidal_auto_sorter")
+    created_playlist.add(ids,limit=(len(choosedPlaylist[i])+5))
+    print(f"Playlist '{names[i]}' créer avec succés")
