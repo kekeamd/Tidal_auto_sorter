@@ -13,8 +13,9 @@
 
 ## TO DO LIST :
 - Tri automatique par genre
-- Choix + Gestion des imports de playlists dans Tidal
+- Modifier le tri par mix pour le rendre plus cohérent (gestion des paramètres de cohérences)
 
 ## Idea
 - Facilité le tri par mix ?
 - Créer un tri hybrid -> Genre + mix + merge ?
+- Nouveau type de tri : mix +-> Par artistes 
