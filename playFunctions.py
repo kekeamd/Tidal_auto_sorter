@@ -47,7 +47,12 @@ def MergeMixByIntersect(listOfMix : list[list[tidalapi.Track]], Console : bool =
 # lAbsrobtion : Nombre de playlist maximum qu'une playlist peut en absorber une autre (par défaut 10)
 # lAsborbe : Nombre de playlist maximum qu'une playlist peut être absorbé par une autre (par défaut 1)
 # Console : Affiche ou non les étapes du traitement dans la console
-def MegePlaylistByIntersect(L : list[list[tidalapi.Track]], untraited : list[tidalapi.Track] = [], interMin : int = 1, lAbsrobtion : int = 10, lAsborbe : int = 1, Console : bool = True):
+def MegePlaylistByIntersect(L : list[list[tidalapi.Track]],
+                            untraited : list[tidalapi.Track] = [], 
+                            interMin : int = 1, 
+                            lAbsrobtion : int = 10, 
+                            lAsborbe : int = 1, 
+                            Console : bool = True):
     res = [[] for _ in range(len(L))]         # Résultat final
     Abso = [[0,0,True] for _ in range(len(L))]     # (Nombre de playlist absorbé, Nombre de playlist qui m'absorbe, J'ai le droit d'être utiliser)
     order = [i for i in range(len(L))]        # Ordre de d'accès aux playlists
@@ -78,17 +83,18 @@ def MegePlaylistByIntersect(L : list[list[tidalapi.Track]], untraited : list[tid
     return res
 
 # Fonction qui retourne une liste de l'union des playlists qui ont une taille inférieur au seuil
-# ListOfPLaylist : Liste des playlists à traiter
+# l : Liste des listes
 # seuil : Seuil de taille maximum authorisé pour une playlist (par défaut 1)
-def removeToLittle(ListOfPlaylist : list[list[tidalapi.Track]],seuil : int = 1) -> list[tidalapi.Track]:
+def removeToLittle(l : list[list[any]],seuil : int = 1) -> list[any]:
     res = []
-    for i in range(len(ListOfPlaylist)):
-        if len(ListOfPlaylist[i])<=seuil:
-            appendList(res,ListOfPlaylist[i].copy(),True)
-            ListOfPlaylist[i] = []
+    for i in range(len(l)):
+        if len(l[i])<=seuil:
+            isTrack = (type(l[i]) == list[tidalapi.Track])
+            appendList(res,l[i].copy(),isTrack)
+            l[i] = []
     return res
 
-# Fonciton qui supprime les playlists dupliquées
+# Fonction qui supprime les playlists dupliquées
 # L : Liste des playlists à traiter
 # s : Seuil de similarité pour considérer que deux playlists sont les mêmes (par défaut 0)
 # Deux playlists sont considiérées similaire si elles ont au moins len(la plus petite playlist) - s éléments en commun
@@ -99,28 +105,12 @@ def supprDuplicatedPlaylist(L : list[list[tidalapi.Track]],s : int = 0, Console 
                 if i!=j and sameContent(L[i],L[j],s):
                         appendList(L[i],L[j],True)
                         L[j] = []
-                        print("Suppression de playlist avec les même contenu") if Console else None
+                        print(f"Suppression de playlist avec les même contenu {i}/{len(L)}") if Console else None
                 else:
                     # Rien à faire
                     pass
             except ValueError as e:
                 print(f"Erreur lors du traitement des playlists {i} et {j} : {e}") if Console else None
-
-# Fonction qui renvoie sous forme de texte le nom d'artistes de musiques pris aléatoirement
-# L : Une playlist
-# MaxArtist : le nombre Max de titre d'ou viennent les artistes
-def getNameByArtists(L : list[tidalapi.Track],MaxArtist : int = 3) -> str | None:
-    res = ""
-    if len(L)==0:
-        return None
-    else:
-        toPick = []
-        for i in range(MaxArtist):
-            pick = randint(0,len(L))
-            while len(toPick)<len(L) and (pick in toPick):
-                pick = randint(0,len(L))
-        for i in toPick:
-            res = res + L[i].artist + " "
 
 # Fonction qui supprime toutes les playlists vides
 def deleteEmptyPlaylist(L : list[list[tidalapi.Track]]):

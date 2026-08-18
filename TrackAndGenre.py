@@ -34,7 +34,7 @@ class TrackAndGenre():
         res = []
         for track in self._tracks_and_genre.keys():
             res.append(track)
-        return track
+        return res
     
     # Permet de set une playlist
     def setPlaylist(self,playlist : tidalapi.playlist) -> None:
@@ -104,6 +104,17 @@ class TrackAndGenre():
         self._tracks_and_genre[track] = genres
         return success
     
+    # Fonction qui renvoie le genre d'une piste
+    # Renvoie une liste de genres
+    def get_genre_of_track(self,track : tidalapi.Track) -> list[str]:
+        res = []
+        if track in self._tracks_and_genre:
+            if self._tracks_and_genre[track] is None:
+                self._get_genre_of_track(track)
+            res = self._tracks_and_genre[track]
+        else:
+            raise(ValueError("TrackAndGenre : get_genre_of_track -> Le genre de la track demandé n'existe pas dans l'objet !"))
+        return res
 
     # Fonction qui récupère les genres de nos tracks
     # prob : liste des tracks qui n'ont pas pu être traité [PARAMETRE I/O] ! PAS DE RECUPERATION SI VIDE
@@ -153,13 +164,16 @@ class TrackAndGenre():
         res = []
         for genre in genres:
             utils.appendList(res,self.get_tracks_of_genre(genre),True)
-        if NbGenreSim:
-            toDel = []
-            for i in range(len(res)-1,0,-1):                                                   # Dans le cas ou on a NbGenreSim=-1, on supprime tout les titres qui n'ont pas tout les genres
-                if ((len(genres)>=NbGenreSim) and (len(utils.Intersection(genres,self._tracks_and_genre[res[i]])) < NbGenreSim)) or (NbGenreSim==-1 and utils.Include(genres,self._tracks_and_genre[res[i]])):
-                    toDel.append(i)
-            for i in toDel:
-                res.pop(i)
+        if NbGenreSim>len(genres):
+            print(f"AHHH {NbGenreSim} - {len(genres)}")
+            NbGenreSim = len(genres)
+            print(f"BB {NbGenreSim}")
+        toDel = []
+        for i in range(len(res)-1,0,-1):                                                   # Dans le cas ou on a NbGenreSim=-1, on supprime tout les titres qui n'ont pas tout les genres
+            if ((len(genres)>=NbGenreSim) and (len(utils.Intersection(genres,self._tracks_and_genre[res[i]])) < NbGenreSim)) or (NbGenreSim==-1 and utils.Include(genres,self._tracks_and_genre[res[i]])):
+                toDel.append(i)
+        for i in toDel:
+            res.pop(i)
         return res
     
     # Fonction qui renvoie touts le genres ainsi que leurs nombre d'apparition dans la playlist

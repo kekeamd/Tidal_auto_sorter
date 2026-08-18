@@ -12,7 +12,8 @@
 - Tri par genre
 
 ## TO DO LIST :
-- Tri automatique par genre
+- Modifier le tri automatique par genre (La corespondance des genres)
+    -> Il faut l'optimiser, un créer trop de listes de genres, ce qui cause un exccès de calcul et rends le programme trop lent
 - Modifier le tri par mix pour le rendre plus cohérent (gestion des paramètres de cohérences)
 
 ## Idea

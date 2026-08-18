@@ -25,9 +25,6 @@ def IntersectionTrackList(L1 : list[tidalapi.Track],L2 : list[tidalapi.Track],Wi
                 res.append(i)
     return res
 
-# def VerifMix(t,listOfOhter,nbEtape,traité : list[tidalapi.Track] = []):
-#     mix = t.get_radio_mix()
-
 def isInWithName(t : tidalapi.Track ,listOfOhter : list[tidalapi.Track]):
     for el in listOfOhter:
         if (el.name == t.name) and (el.artist.name == t.artist.name):
@@ -46,8 +43,7 @@ def Merge(L1 : list[tidalapi.Track],L2 : list[tidalapi.Track]):
 
 # Fonction qui verse tout les éléments de L2 dans L1
 # Supprime les duplicata
-# isTrack : bool qui détérmine si les éléments à traiter son des titres
-def appendList(dst,src,isTrack : bool = False):
+def appendList(dst : list[tidalapi.Track | str | int], src : list[tidalapi.Track | str | int], isTrack : bool = False) -> None:
     for e in src:
         if isTrack and not isInWithName(e,dst):          # Cas ou on traite des titres
             dst.append(e)
@@ -163,7 +159,44 @@ def Intersection(L1 : list[str | int] ,L2 : list[str | int]) -> list[str | int]:
 
 # Renvoie si une liste est incluse dans l'autre
 def Include(L1 : list[str | int] ,L2 : list[str | int]) -> bool:
-    return len(Intersection(L1,L2)) == len(minList(L1,L2))
+    return len(minList(L1,L2)) == len(Intersection(L1,L2))
+
+# Vérifie si la liste L1 a le même contenu que la liste L2
+# On autorise diffAutori éléments à être différents
+def sameList(L1 : list[str | int], L2 : list[str | int], diffAutori : int = 0) -> bool:
+    if len(L1)==len(L2) or len(L1)==(len(L2)-diffAutori) or (len(L1)-diffAutori)==len(L2):
+        sizeInter = len(Intersection(L1,L2))
+        return ((sizeInter-diffAutori)==len(L1) or (sizeInter-diffAutori)==len(L2))
+    else:
+        return False
+
+# Fonction qui vérifie si une lite est inclus dans une liste de liste
+# Vérification de même contenu
+# Si la list_to_verif fait partie des listes de list alors ça renverra son index, -1 sinon
+def listIncludelist(l : list[list[any]],list_to_verif : list[any]) -> int:
+    for i in range(len(l)):
+        if sameList(l[i],list_to_verif):
+            return i
+    return -1
+
+# Fonction qui supprime les listes qui ont le même contenu
+# l : la liste de liste en entrée
+def deleteDuplicatedList(l : list[list[str | int]]) -> list[list[str | int]]:
+    res = []
+    for i in range(len(l)):                     # On itère sur les éléments de l
+        #print(i)
+        if len(res)>0:                          # Si la taille de res == 0 alors on ajoute, on a rien à comparer
+            is_in = False
+            for j in range(len(res)):           # On itère sur les éléments de res pour voir si l[i] est déjà dedans
+                if sameList(l[i],res[j]):
+                    is_in = True
+            if is_in==False:
+                res.append(l[i])
+        elif len(res)==0:
+            res.append(l[i])
+    if len(res)==0:
+        res.append([])
+    return res
 
 # Affiche les selections de genres
 def affiche_genre_selection(L : list[list[str]], message : str = "\nVos selections : ") -> None:
@@ -184,13 +217,16 @@ def affiche_data(data : dict,savedPlaylistsNames : list[str]) -> None:
     if data["typeSort"] == 3 and data["typeGenreSort"] != -1:
         print("\n===============================")
         print("Tri par genre choisi : ",end="")
-        print("1 : Automatique") if data["typeGenreSort"] == 1 else None
-        if data["typeGenreSort"] == 2:
-            print("2 : Manuel")
+        typeTriGenre = [0,1]
+        if data["typeGenreSort"] in typeTriGenre:
+            print("0 : Automatique") if data["typeGenreSort"] == 0 else None
+            print("1 : Manuel") if data["typeGenreSort"] == 1 else None
             try:
                 affiche_genre_selection(data["genreList"],"\nVoici les séléctions de genres : ")
             except:
                 pass
+        else:
+            print(f"{data["typeGenreSort"]} Pas d'affichage pour cette option... {typeTriGenre}")
         print("===============================")
     print("")
     afficheListe(savedPlaylistsNames,"Voici les playlist qui vont être triées :",False,False)
@@ -350,3 +386,40 @@ def generateName(l : list[tidalapi.Track],NameType : int, track_url : str,header
                 name += f"{e}({artD[e] if DEV else None}), "
             name = name[:-2]
     return name
+
+# Retourne les combinaisons de n éléments de l
+# Si n == -1 alors renvoie simplement la liste (Cas ou le nombre d'éléments qu'on veut est égal à la taille de la liste)
+def combinaison(l : list[any] , n : int = -1) -> list[list[any]]:
+    taille = n
+    res = []
+    if n<0 or n>len(l):
+        taille = len(l)
+    if taille==0:
+        res = [[]]
+    elif taille==1:
+        for e in l:
+            res.append([e])
+    elif taille != len(l):
+        for i in range(len(l)):
+            list_rec = l.copy()
+            list_rec.remove(l[i])
+            for e in combinaison(list_rec,taille-1):
+                toAppend = [l[i]]
+                appendList(toAppend,e)
+                res.append(toAppend)
+    elif taille == len(l):
+        res=[l]
+    else: # ??? C'est pas censé arriver....
+        res = [[]]
+    res = deleteDuplicatedList(res)
+    return res
+
+def removeLittleList(l : list[list[any]],seuil : int = 1) -> list[list[any]]:
+    indextoSave = []
+    res = []
+    for i in range(len(l)):
+        if len(l[i])>=seuil:
+            indextoSave.append(i)
+    for i in indextoSave:
+        res.append(l[i])
+    return res

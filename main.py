@@ -99,6 +99,9 @@ else:
 Go do somes tests :)
 """
 
+#combinaison(['UK Garage', '2-Step Garage', 'Electronic', 'Grime', 'Dubstep'],4)
+
+#exit(0)
 #======================================================================================================
 
 #======================================================================================================
@@ -159,12 +162,12 @@ if not useLast:                                                     # On demande
     types_tri = []
     types_tri.append("Tri par mix de chaque piste (Verification de la présence des titres dans les mix de chaque piste)")
     types_tri.append("Tri par mix + merge")
-    types_tri.append("Tri par genre (Comparaison de genre entre toutes les pistes)")
+    types_tri.append("Tri par genre")
     types_tri.append("Quitter")
     while True:
-        saisie = choice(types_tri,"Veuillez choisir une méthode de tri (Par défaut -> 2) : ",1,False,2,True,0)
+        saisie = choice(types_tri,"Veuillez choisir une méthode de tri (Par défaut -> 2) : ",1,False,None,True,1)
         if saisie[0] in [1,2,3]:
-            sort = int(saisie[0])
+            sort = int(saisie[0])+1
             saisie = input("Vous avez choisi la méthode de tri n°"+str(saisie[0])+" ! Veuillez confirmer -> Entrer pour continuer ou 'N' pour changer de méthode : ")
             if saisie.lower()!='n':
                 break
@@ -288,9 +291,9 @@ if sort==1 or sort==2:
 
     # =============================================================================================== ENVOIE DES PLAYLISTS PROBLEMATIQUES DANS UNE PLAYLIST A PART
     for l in unuszed:                                                                               # Gestion des playlists non traitées
-        appendList(LittePlaylist,l,True)
+        appendList(LittePlaylist,l)
 
-    appendList(LittePlaylist,removeToLittle(calculatedPlaylist,listMin),True)                                 # Envoie des playlists trop petite dans LittlePlaylist
+    appendList(LittePlaylist,removeToLittle(calculatedPlaylist,listMin))                                 # Envoie des playlists trop petite dans LittlePlaylist
 
 #======================================================================================================
 
@@ -356,7 +359,7 @@ elif sort == 3:
             print("API OK") if DEV else None
         for p in toSort:                            # Boucle pour chaque Playlists à gérer
             print(f"\nRécupération des pistes de : {p.name}")
-            appendList(all_tracks,p.tracks(),True)
+            appendList(all_tracks,p.tracks())
             print("\n")
         MyPlaylist = TrackAndGenre(track_url,header,Console=Console,DEV=DEV)
         MyPlaylist.set_tracks_without_playlists(all_tracks)
@@ -366,7 +369,7 @@ elif sort == 3:
         # ===========================================================================
         # ========================= CHOIX AUTO/MANUEL ===============================
         clear()
-        if useLast and data["typeGenreSort"] != -1:             # Utilisation des anciens paramètres
+        if useLast and data["typeGenreSort"] != -1 and False:             # Utilisation des anciens paramètres
             print("===============================")
             print("Utilisation des anciens paramètres !")
             print("===============================")
@@ -378,7 +381,7 @@ elif sort == 3:
                 exit()
         else:                                                   # Nouveaux paramètres à saisir
             Choix : list[str] = []
-            Choix.append("Tri automatique, ici vous choisissez un niveau de cohérence.[W.I.P.]\n")
+            Choix.append("Tri automatique, ici vous choisissez un niveau de cohérence.\n")
             Choix[0] += "     Celui-ci déterminera le nombre de genre que des pistes doivent avoir en commun afin d'être dans la même playlist"
             
             Choix.append("Tri manuel, ici on vous proposera une liste de genres.\n")
@@ -390,33 +393,59 @@ elif sort == 3:
                 exit()
             else:
                 data['typeGenreSort'] = saisie[0]
+            f = open(dataPath,'w')                                                              # Sauvegarde des nouveaux settings
+            json.dump(data,f,indent=4)
+            f.close()
+            
 
             clear()
             nextStep = False
 
             if data['typeGenreSort'] == 0:                                  # Tri automatique
-                genres_tot = MyPlaylist.get_total_genres() # Génération du dico "Genre : nombre d'apparition"
-                genres_classed_tmp : list[list[str,int]] = [] # Récupération temporaire du dico -> list[list]
-                genres_classed : list[list[str,int]] = []     # Genres trié par le nombre d'apparition dans le sens décroissant
-                for g,nb in genres_tot.items():
-                    genres_classed_tmp.append([g,nb])
-                while len(genres_classed_tmp)>0:
-                    maxG : int = 0
-                    who : int = None
-                    for i in range(len(genres_classed_tmp)):
-                        e = genres_classed_tmp[i]
-                        if e[1]>maxG:
-                            maxG = e[1]
-                            who = i
-                    genres_classed.append(genres_classed_tmp.pop(who))
-                for i in range(1,len(genres_classed)):
-                    if not(genres_classed[i][1]<=genres_classed[i-1][1]):
-                        raise(ValueError(f"Tri par genre automatique : les genres dans 'genres_classed' ne sont pas trié ??? \nlist : {genres_classed}\nindex :{i}"))
-                MaxPlaylists = len(genres_classed) if coherence.getmaxGenres() == -1 else min(len(genres_classed),coherence.getmaxGenres())
-                if MaxPlaylists > len(genres_classed): # FAILSAFE
-                    raise(ValueError(f"Tri par genre automatique : La valeur MaxPlaylists({MaxPlaylists}) est plus grande que la taille de genres_classed({len(genres_classed)})"))
-                for i in range(MaxPlaylists):
-                    genresList.append([genres_classed[i][0]])
+                Choix = []
+                # 0
+                Choix.append("Création de Playlists à partir d'un genre \n  (1 playlist = 1 genre)")
+                # 1
+                Choix.append("Création de Playlists à partir de correspondance de genre entre titre \n  (titre 1 et titre 2 on X genre en commum alors même playlist)")
+                saisie = choice(Choix,"Type de tri automatique",1)
+                clear()
+                if saisie[0] == 0:# ================================================== AUTO -> 1 genre / Playlist
+                    genres_tot = MyPlaylist.get_total_genres() # Génération du dico "Genre : nombre d'apparition"
+                    genres_classed_tmp : list[list[str,int]] = [] # Récupération temporaire du dico -> list[list]
+                    genres_classed : list[list[str,int]] = []     # Genres trié par le nombre d'apparition dans le sens décroissant
+                    for g,nb in genres_tot.items():
+                        genres_classed_tmp.append([g,nb])
+                    while len(genres_classed_tmp)>0:
+                        maxG : int = 0
+                        who : int = None
+                        for i in range(len(genres_classed_tmp)):
+                            e = genres_classed_tmp[i]
+                            if e[1]>maxG:
+                                maxG = e[1]
+                                who = i
+                        genres_classed.append(genres_classed_tmp.pop(who))
+                    
+                    for i in range(1,len(genres_classed)): # Vérification du tri
+                        if not(genres_classed[i][1]<=genres_classed[i-1][1]):
+                            raise(ValueError(f"Tri par genre automatique : les genres dans 'genres_classed' ne sont pas trié ??? \nlist : {genres_classed}\nindex :{i}"))
+                    
+                    MaxPlaylists = len(genres_classed) if coherence.getmaxGenres() == -1 else min(len(genres_classed),coherence.getmaxGenres())
+
+                    if MaxPlaylists > len(genres_classed): # FAILSAFE
+                        raise(ValueError(f"Tri par genre automatique : La valeur MaxPlaylists({MaxPlaylists}) est plus grande que la taille de genres_classed({len(genres_classed)})"))
+                    for i in range(MaxPlaylists):
+                        genresList.append([genres_classed[i][0]])
+                elif saisie[0] == 1: # ================================================ AUTO -> Correspondance de genre
+                    out_Play : list[list[tidalapi.Track]] = []
+                    Tracks : list[tidalapi.Track]= MyPlaylist.get_tracks()
+                    for t in Tracks:
+                        genres_of_t : list[str] = MyPlaylist.get_genre_of_track(t)
+                        for c in combinaison(genres_of_t,coherence.getmaxComGenres()):
+                            genresList.append(c)
+                    genresList = removeLittleList(genresList,coherence.getminComGenres())
+                    deleteDuplicatedList(genresList)
+                else:
+                    raise(ValueError(f"Choix type de tri auto : Un entrée impossible à été saisie ! {saisie[0]}"))
             elif data['typeGenreSort']==1:  # Tri manuel
                 genresList.append([])
                 while True:

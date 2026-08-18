@@ -2,7 +2,7 @@ import json
 from Coherence import Coherence
 import pathlib
 import os
-
+import shutil
 class GestionCoherence:
     
     #   PARAMETRES PAR DEFAUTS, PEUVENT ETRE CHANGER DANS LES FICHIERS ./userdata/coherenceSettings/
@@ -11,11 +11,11 @@ class GestionCoherence:
     # intersectionMinimal -> Nombre de musiques en commun nécessaire afin de faire un merge
     # listeMinimal -> Taille de liste minimal accepté
     
-    _CorFAIBLE = {'NbrGenres' : 1, 'Absorbtion' : [50,3], 'intersectionMinimal' : 1 , 'listeMinimal' : 5, 'maxGenres' : -1}
+    _CorFAIBLE = {'NbrGenres' : 1, 'Absorbtion' : [50,3], 'intersectionMinimal' : 1 , 'listeMinimal' : 5, 'maxGenres' : -1, 'minComGenres' : 1, 'maxComGenres' : 2}
     _CorFAIBLE_name = "FAIBLE.json"
-    _CorMOYEN = {'NbrGenres' : 2, 'Abso' : [40,2], 'intersectionMinimal' : 2 , 'listeMinimal' : 3, 'maxGenres' : 15}
+    _CorMOYEN = {'NbrGenres' : 3, 'Abso' : [40,2], 'intersectionMinimal' : 2 , 'listeMinimal' : 3, 'maxGenres' : 15, 'minComGenres' : 2, 'maxComGenres' : 4}
     _CorMOYEN_name = "MOYEN.json"
-    _CorFORT = {'NbrGenres' : -1, 'Abso' : [30,1], 'intersectionMinimal' : 3 , 'listeMinimal' : 1, 'maxGenres' : 5}
+    _CorFORT = {'NbrGenres' : -1, 'Abso' : [30,1], 'intersectionMinimal' : 3 , 'listeMinimal' : 1, 'maxGenres' : 5, 'minComGenres' : 3, 'maxComGenres' : -1}
     _CorFORT_name = "FORT.json"
 
     def __init__(self, Path : str | pathlib.Path, coherence : Coherence = None, DEV : bool = False):
@@ -35,9 +35,11 @@ class GestionCoherence:
             print("Problème avec la cohérence, probablement inccorect !")
             print(e)
             self._coherence = None
+            exit(1)
     
     # Récupère les datas des cohérence à partir des fichiers
     def _load_Coherence(self):
+        need_restart = False
         FAIBLE_PATH = self._path / self._CorFAIBLE_name
         MOYEN_PATH = self._path / self._CorMOYEN_name
         FORT_PATH = self._path / self._CorFORT_name
@@ -59,8 +61,12 @@ class GestionCoherence:
                         self._CorFORT = json.load(f)
                 f.close()
                 if default_len_FAIBLE != len(self._CorFAIBLE) or default_len_MOYEN != len(self._CorMOYEN) or default_lenFORT != len(self._CorFORT):
+                    need_restart = True
                     raise(ValueError("Nombre d'items enregistrer et attendu différent !"))
             except:
+                if need_restart:
+                    shutil.rmtree(self._path)
+                    raise(ValueError("Veuillez redémarrer, une erreur est survenue."))
                 f = open(pathList[i],'w')
                 match i:
                     case 0:
@@ -102,3 +108,11 @@ class GestionCoherence:
     # masGenres -> Le nombre maximal de playlists généré automatiquement par genre autorisé
     def getmaxGenres(self) -> int:
         return self.getData()["maxGenres"]
+    
+    # Nombre minimum de genres en commun entre 2 musiques (Tri automatique par genre en commun)
+    def getminComGenres(self) -> int:
+        return self.getData()["minComGenres"]
+    
+    # Nombre maximum de genres en commun entre 2 musiques (Tri automatique par genre en commun)
+    def getmaxComGenres(self) -> int:
+        return self.getData()["maxComGenres"]
