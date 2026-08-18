@@ -111,6 +111,8 @@ def afficheListe(l : list[str], message : str = "Elements : ", tab : bool = True
         if type(e)!=itemType: #====================================================================== Vérification d'une incohérence                                                                     
             raise(TypeError(f"Un élément de la liste à un type étrange (Ne correspond pas au reste : {type(e)} ==> {itemType})"))
         
+        #print(itemType)
+        
         if itemType == tidalapi.Track: #============================================================= Cas Track
             print(f"{e.full_name} - {e.artist.name}")
         elif itemType == tidalapi.playlist.Playlist or itemType == tidalapi.playlist.UserPlaylist: #= Cas Playlist
@@ -167,9 +169,7 @@ def Include(L1 : list[str | int] ,L2 : list[str | int]) -> bool:
 def affiche_genre_selection(L : list[list[str]], message : str = "\nVos selections : ") -> None:
     print(message)
     for i in range(len(L)):
-        print("===============")
         afficheListe(L[i],f"Selection {i} : ")
-        print("===============\n")
 
 # Fonction ayant pour SEULE utilité d'affiché l'ensemble des données de data
 # Rappel de structure :
@@ -224,9 +224,14 @@ def choice(l: list, message : str = "Liste d'éléments à choisir",
         clear()
         afficheListe(l,message,False,True,short) # On affiche les éléments qui PEUVENT être SELECTIONNER
         if len(choosed)>0: # On affiche les éléments déjà SELECTIONNER
-            print("\nElements séléctionner :\n")
+            choosed_element : list[any] = []
             for e in choosed:
-                print(f"- {e}")
+                if itemType != tidalapi.artist:
+                    choosed_element.append(l[e])
+                else:
+                    choosed_element.append(l[e].name)
+            afficheListe(choosed_element,"\nElements séléctionner :",True,True,True)
+        
         print("\nVeuillez choisir les éléments que vous souhaitez séléctionner !")
         print("Format accepté : ")
         print("- numero_item (Permet d'ajouter UN élément à la selection)")
@@ -295,7 +300,7 @@ def generateName(l : list[tidalapi.Track],NameType : int, track_url : str,header
     if len(l)==0:
         name = randchoose(emptyName)
     else:
-        if NameType == 0: # Genre
+        if NameType == 0: #==================================================  Genre
             genreFinal=[]
             genresD = {}
             genresL = []
@@ -308,7 +313,7 @@ def generateName(l : list[tidalapi.Track],NameType : int, track_url : str,header
                     else:
                         genresL.append(g)
                         genresD[g] = 1
-            for i in range (min(5,len(genresL))): # Vérif max ?
+            for i in range (min(randint(1,5),len(genresL))): # Vérif min ?
                 max=0
                 Gmax = None
                 for g in genresD.keys():
@@ -320,7 +325,7 @@ def generateName(l : list[tidalapi.Track],NameType : int, track_url : str,header
             for e in genreFinal:
                 name += f"{e}, "
             name = name[:-2]
-        elif NameType == 1: # Artistes
+        elif NameType == 1: #================================================ Artistes
             artFinal=[]
             artD = {}
             artL = []

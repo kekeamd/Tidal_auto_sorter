@@ -5,6 +5,12 @@ import requests
 
 class TrackAndGenre():
     
+    # track_url : url de l'api TIDAL pour les tracks
+    # header : infos à envoyer à l'api, notamment l'authentification
+    # playlist : une playlist
+    # Console : Les retours console de la classe
+    # DEV : Les retours console pour DEV de la classe
+    # timeout : temps avant qu'on considère le serveur comme injoinagble lorsqu'on fais une request
     def __init__(self, track_url : str ,header : str, playlist : tidalapi.playlist = None,Console : bool = True, DEV : bool = False, timeout : int = 30):
         self._playlist : tidalapi.playlist = playlist
         self._track_url : str = track_url
@@ -126,6 +132,10 @@ class TrackAndGenre():
         res = []
         for genres in self._tracks_and_genre.values():
             utils.appendList(res,genres)
+        if len(res)==0 and len(self._tracks_and_genre) > 1:         # On avait pas load les genres...
+            self.load_all_genres()
+            if len(self._tracks_and_genre.values())>0 and len(self._tracks_and_genre.values()[0])>0: # Il y a bien des genres ? Faut pas tourner à l'infini !
+                res = self.get_all_genres()
         return res
     
     # Fonction pour récupérer les pistes qui sont du genre "genre"
@@ -152,4 +162,12 @@ class TrackAndGenre():
                 res.pop(i)
         return res
     
-    
+    # Fonction qui renvoie touts le genres ainsi que leurs nombre d'apparition dans la playlist
+    def get_total_genres(self):
+        genres = {}
+        for g in self.get_all_genres():
+            genres[g] = 0
+        for gl in self._tracks_and_genre.values():
+            for g in gl:
+                genres[g] +=1
+        return genres

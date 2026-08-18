@@ -11,11 +11,11 @@ class GestionCoherence:
     # intersectionMinimal -> Nombre de musiques en commun nécessaire afin de faire un merge
     # listeMinimal -> Taille de liste minimal accepté
     
-    _CorFAIBLE = {'NbrGenres' : 1, 'Absorbtion' : [50,3], 'intersectionMinimal' : 1 , 'listeMinimal' : 5}
+    _CorFAIBLE = {'NbrGenres' : 1, 'Absorbtion' : [50,3], 'intersectionMinimal' : 1 , 'listeMinimal' : 5, 'maxGenres' : -1}
     _CorFAIBLE_name = "FAIBLE.json"
-    _CorMOYEN = {'NbrGenres' : 2, 'Abso' : [40,2], 'intersectionMinimal' : 2 , 'listeMinimal' : 3}
+    _CorMOYEN = {'NbrGenres' : 2, 'Abso' : [40,2], 'intersectionMinimal' : 2 , 'listeMinimal' : 3, 'maxGenres' : 15}
     _CorMOYEN_name = "MOYEN.json"
-    _CorFORT = {'NbrGenres' : -1, 'Abso' : [30,1], 'intersectionMinimal' : 3 , 'listeMinimal' : 1}
+    _CorFORT = {'NbrGenres' : -1, 'Abso' : [30,1], 'intersectionMinimal' : 3 , 'listeMinimal' : 1, 'maxGenres' : 5}
     _CorFORT_name = "FORT.json"
 
     def __init__(self, Path : str | pathlib.Path, coherence : Coherence = None, DEV : bool = False):
@@ -46,6 +46,9 @@ class GestionCoherence:
         pathList = [FAIBLE_PATH,MOYEN_PATH,FORT_PATH]
         for i in range(len(pathList)):
             try:
+                default_len_FAIBLE = len(self._CorFAIBLE)
+                default_len_MOYEN = len(self._CorMOYEN)
+                default_lenFORT = len(self._CorFORT)
                 f = open(pathList[i],'r')
                 match i:
                     case 0:
@@ -55,6 +58,8 @@ class GestionCoherence:
                     case 2:
                         self._CorFORT = json.load(f)
                 f.close()
+                if default_len_FAIBLE != len(self._CorFAIBLE) or default_len_MOYEN != len(self._CorMOYEN) or default_lenFORT != len(self._CorFORT):
+                    raise(ValueError("Nombre d'items enregistrer et attendu différent !"))
             except:
                 f = open(pathList[i],'w')
                 match i:
@@ -79,17 +84,21 @@ class GestionCoherence:
                 raise ValueError(f"GestionCoherence : getData -> Cohérence illogique ou pas set ! {self._coherence}")
     
     # NbrGenres -> Condition pour le tri par genre : si -1 tous les genres sont obligatoire, sinon prends le nombre de genre
-    def getNbrGenres(self):
+    def getNbrGenres(self) -> int:
         return self.getData()["NbrGenres"]
     
     # Absorbtion[Absrobe & Absorbé] -> Nombre de fois qu'une playlists peut en absorbé une autre ou se faire absorbé
-    def getAbsorbtion(self):
+    def getAbsorbtion(self) -> list[int]:
         return self.getData()["Absorbtion"]
     
     # intersectionMinimal -> Nombre de musiques en commun nécessaire afin de faire un merge
-    def getintersectionMinimal(self):
+    def getintersectionMinimal(self) -> int:
         return self.getData()["intersectionMinimal"]
     
     # listeMinimal -> Taille de liste minimal accepté
-    def getlisteMinimal(self):
+    def getlisteMinimal(self) -> int:
         return self.getData()["listeMinimal"]
+
+    # masGenres -> Le nombre maximal de playlists généré automatiquement par genre autorisé
+    def getmaxGenres(self) -> int:
+        return self.getData()["maxGenres"]

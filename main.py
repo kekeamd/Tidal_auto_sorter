@@ -111,14 +111,22 @@ playlists : list[tidalapi.Playlist] = session.user.playlists()
 dataPath : Path = userPath / "lastSession.json"
 toSort : list[tidalapi.Playlist] = []
 useLast : bool = False
-Console : bool = data["AfficheConsole"]
+Console : bool = data["AfficheConsole"] # Défini si oui on non on veut les affichages console
+sort : int = None                       # Défini le type de tri qui va être employé
 calculatedPlaylist = []                 # Liste regroupant toutes les playlists calculé
 unrated = []                            # Liste regroupant les titres qui ont posé problème
 LittePlaylist = []                      # Liste regroupant les titres des playlists trop petites
 if Path(dataPath).is_file():
-    f = open(dataPath,"r")
-    data = json.load(f)
-    f.close()
+    try:
+        f = open(dataPath,"r")
+        data = json.load(f)
+        f.close()
+    except:
+        f.close()
+        os.remove(dataPath)
+        print("Il y a eu un problème lors de la lecture des données de dernières session.")
+        print("Veuillez relancer le programme.")
+        exit(1)
     savedPlaylists = []
     IHaveAnError = False
     for e in data['playlists']:
@@ -238,7 +246,7 @@ if input("Appuyer sur Entrer pour continuer, n'importe quel touche pour sortir "
     print("Au revoir !")
     exit()
 
-calculatedPlaylist : list[tidalapi.Track] = None
+calculatedPlaylist : list[tidalapi.Track] = []
 
 #======================================================================================================
 
@@ -283,8 +291,6 @@ if sort==1 or sort==2:
         appendList(LittePlaylist,l,True)
 
     appendList(LittePlaylist,removeToLittle(calculatedPlaylist,listMin),True)                                 # Envoie des playlists trop petite dans LittlePlaylist
-
-    supprDuplicatedPlaylist(calculatedPlaylist)                                                          # Suppression des duplicata
 
 #======================================================================================================
 
@@ -356,60 +362,73 @@ elif sort == 3:
         MyPlaylist.set_tracks_without_playlists(all_tracks)
         MyPlaylist.load_all_genres(unrated)
         all_genres = MyPlaylist.get_all_genres()
-        genreList = [[]]
+        genresList = []
         # ===========================================================================
         # ========================= CHOIX AUTO/MANUEL ===============================
         clear()
-        if useLast and data["typeGenreSort"] != -1:
+        if useLast and data["typeGenreSort"] != -1:             # Utilisation des anciens paramètres
             print("===============================")
             print("Utilisation des anciens paramètres !")
             print("===============================")
-            genreList = data["genreList"]
-            affiche_genre_selection(genreList,"Listes des selections : ")
+            genresList = data["genresList"]
+            affiche_genre_selection(genresList,"Listes des selections : ")
             saisie = input("Appuyer sur X pour quitter, n'importe quel autre saisie pour continuer : ")
             if saisie.lower() == 'x':
                 print("Au revoir")
                 exit()
-        else:
-            while True:
-                print("=====================================")
-                print("2 types de tri sont proposé : ")
-                print("===============")
-                print("1 : Tri automatique, ici vous choisissez un niveau de cohérence.[W.I.P.]")
-                print("     Celui-ci déterminera le nombre de genre que des pistes doivent avoir en commun afin d'être dans la même playlist")
-                print("===============")
-                print("2 : Tri manuel, ici on vous proposera une liste de genres.")
-                print("     Vous composerez un 'menu', c'est-à-dire une liste de genre afin de composer une playlist")
-                print("===============")
-                print("X : Quitter")
-                print("=====================================")
-                saisie = input("\nVotre Choix : ")
-                if saisie == '1' or saisie == '2':
-                    data['typeGenreSort'] = int(saisie)
-                    break
-                elif saisie.lower() == 'x':
-                    print("Au revoir !")
-                    exit()
-                else:
-                    clear()
-                    print("Saisie incorrect ! ")
-                    print(saisie) if DEV else None
+        else:                                                   # Nouveaux paramètres à saisir
+            Choix : list[str] = []
+            Choix.append("Tri automatique, ici vous choisissez un niveau de cohérence.[W.I.P.]\n")
+            Choix[0] += "     Celui-ci déterminera le nombre de genre que des pistes doivent avoir en commun afin d'être dans la même playlist"
+            
+            Choix.append("Tri manuel, ici on vous proposera une liste de genres.\n")
+            Choix[1] += "     Vous composerez un 'menu', c'est-à-dire une liste de genre afin de composer une playlist"
+            Choix.append("Quitter")
+            saisie : int = choice(Choix,"2 types de tri sont proposé : ",1)
+            if saisie[0] == 2:
+                print("Au revoir !")
+                exit()
+            else:
+                data['typeGenreSort'] = saisie[0]
+
             clear()
             nextStep = False
-            while True:
-                if data['typeGenreSort'] == 1:                                  # Tri automatique
-                    print("Non implémenté -> W.I.P.")
-                    exit()
-                elif data['typeGenreSort']==2:                                  # Tri manuel
+
+            if data['typeGenreSort'] == 0:                                  # Tri automatique
+                genres_tot = MyPlaylist.get_total_genres() # Génération du dico "Genre : nombre d'apparition"
+                genres_classed_tmp : list[list[str,int]] = [] # Récupération temporaire du dico -> list[list]
+                genres_classed : list[list[str,int]] = []     # Genres trié par le nombre d'apparition dans le sens décroissant
+                for g,nb in genres_tot.items():
+                    genres_classed_tmp.append([g,nb])
+                while len(genres_classed_tmp)>0:
+                    maxG : int = 0
+                    who : int = None
+                    for i in range(len(genres_classed_tmp)):
+                        e = genres_classed_tmp[i]
+                        if e[1]>maxG:
+                            maxG = e[1]
+                            who = i
+                    genres_classed.append(genres_classed_tmp.pop(who))
+                for i in range(1,len(genres_classed)):
+                    if not(genres_classed[i][1]<=genres_classed[i-1][1]):
+                        raise(ValueError(f"Tri par genre automatique : les genres dans 'genres_classed' ne sont pas trié ??? \nlist : {genres_classed}\nindex :{i}"))
+                MaxPlaylists = len(genres_classed) if coherence.getmaxGenres() == -1 else min(len(genres_classed),coherence.getmaxGenres())
+                if MaxPlaylists > len(genres_classed): # FAILSAFE
+                    raise(ValueError(f"Tri par genre automatique : La valeur MaxPlaylists({MaxPlaylists}) est plus grande que la taille de genres_classed({len(genres_classed)})"))
+                for i in range(MaxPlaylists):
+                    genresList.append([genres_classed[i][0]])
+            elif data['typeGenreSort']==1:  # Tri manuel
+                genresList.append([])
+                while True:
                     if not nextStep:
                         print("=====================================")
                         afficheListe(all_genres,"Liste des genres : ")
-                        if len(genreList[0])>0:
+                        if len(genresList[0])>0:
                             print("===============")
-                            affiche_genre_selection(genreList)
+                            affiche_genre_selection(genresList)
                             print("===============")
                             print(f"\nVotre selection actuel : ")
-                            afficheListe(genreList[len(genreList)-1],"Genres :")
+                            afficheListe(genresList[len(genresList)-1],"Genres :")
                             print("===============")
                         print("\nVeuillez choisir un genre a ajouter à votre selection actuel (N/S pour passer à l'étape suivante)")
                         print("=====================================")
@@ -417,8 +436,8 @@ elif sort == 3:
                         try:
                             if saisie.lower() != "n" and saisie.lower() != 's':
                                 choix = all_genres[int(saisie)]
-                                if not choix in genreList[len(genreList)-1]: 
-                                    genreList[len(genreList)-1].append(choix)
+                                if not choix in genresList[len(genresList)-1]: 
+                                    genresList[len(genresList)-1].append(choix)
                                 clear()
                             else:
                                 nextStep = True
@@ -432,10 +451,10 @@ elif sort == 3:
                         clear()
                         print("RAPPEL : ")
                         print("===============")
-                        affiche_genre_selection(genreList)
+                        affiche_genre_selection(genresList)
                         print("===============")
                         print(f"\nVotre selection actuel : ")
-                        afficheListe(genreList[len(genreList)-1],"Genres :")
+                        afficheListe(genresList[len(genresList)-1],"Genres :")
                         print("===============")
                         print("\nQue voulez vous faire ?")
                         print("A - Ajouter un genre à votre selection actuelle")
@@ -448,7 +467,7 @@ elif sort == 3:
                             nextStep = False
                         elif saisie == 's' or saisie == 'n':
                             clear()
-                            genreList.append([])
+                            genresList.append([])
                             nextStep = False
                         elif saisie == 'x':
                             clear()
@@ -456,25 +475,26 @@ elif sort == 3:
                         else:
                             clear()
                             print("Saisie incorrect !")
-                else:
-                    # FAILSAFE
-                    print(f"Valeur de typeGenreSort incohérente ! {data['typeGenreSort']}")
-            data['genreList'] = genreList
+            else:
+                # FAILSAFE
+                raise(ValueError(f"Tri par genre : (Quel tri faire ?) Valeur de typeGenreSort incohérente ! Valeur : {data['typeGenreSort']} Attendu : 0,1"))
+            data['genresList'] = genresList
             f = open(dataPath,'w')                                                              # Sauvegarde des nouveaux settings
             json.dump(data,f,indent=4)
             f.close()
         # ===========================================================================
         # ============================= TRI PAR GENRE ===============================
-        for l in genreList:
+        for l in genresList:
             calculatedPlaylist.append(MyPlaylist.get_tracks_of_genres(l,coherence.getNbrGenres()))
         # ===========================================================================
-
 
 # ===========================================================================
 # ============================= GESTION PLAYLIST ============================
 Tmax=0
 clear()
+supprDuplicatedPlaylist(calculatedPlaylist)                         # Suppression des duplicata
 deleteEmptyPlaylist(calculatedPlaylist)                             # Supprime les playlists vides
+clear()
 print("=====================================")
 print("Size of calculatedPlaylist : ",len(calculatedPlaylist),"\n")
 for i in range(len(calculatedPlaylist)):
@@ -500,6 +520,11 @@ print("=====================================\n")
 afficheListe(LittePlaylist,f"Voici le merge des playlists non traitées (size : {len(LittePlaylist)}) : ")
 
 input("Appuyer sur une touche pour continuer...")
+
+if len(calculatedPlaylist)==0:
+    print("Aucune playlist généré.")
+    print("Au revoir.")
+    exit(0)
 
 saisie=choice(playlists,"Voulez-vous supprimer des playlists ? (Ne rien mettre si vous ne voulez rien supprimer !)",short=True,minItems=0)
 
@@ -550,12 +575,13 @@ Choix = ["Générer à partir partir Genre (Lent)","Générer à partir des noms
 typeName = choice(Choix,"Comment voulez-vous que les noms des playlists soient générer (Par défaut 1)",1,False,Choix[1],True,0)
 
 names = []
-for i in range(len(choosedPlaylist)):
-    pla = choosedPlaylist[i]
-    if typeName[0]!=2:
-        names.append(generateName(pla,typeName[0],f"{TIDAL_API_URL}/tracks/",{"Authorization": f"Bearer {session.access_token}","Content-Type": "application/vnd.api+json",},Console,DEV))
-    else:
-        names.append(f"Playlist {i+1}")
+if len(names)==0:
+    for i in range(len(choosedPlaylist)):
+        pla = choosedPlaylist[i]
+        if typeName[0]!=2:
+            names.append(generateName(pla,typeName[0],f"{TIDAL_API_URL}/tracks/",{"Authorization": f"Bearer {session.access_token}","Content-Type": "application/vnd.api+json",},Console,DEV))
+        else:
+            names.append(f"Playlist {i+1}")
 
 if len(names)!=len(choosedPlaylist):
     raise(ValueError(f"La liste names et la liste choosedPlaylist n'ont pas la même taille !! (names : {len(names)}, choosedPlaylist : {len(choosedPlaylist)})"))
