@@ -1,7 +1,2 @@
 tidalapi
-pathlib
-random
 requests
-logging
-json
-os

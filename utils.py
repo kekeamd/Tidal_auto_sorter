@@ -4,9 +4,14 @@ import Coherence
 from random import choice as randchoose
 from random import randint
 import requests as rq
+import platform
 
 def clear():
-    os.system("cls")
+    system_name = platform.system()
+    if system_name == "Linux" or system_name == "Darwin":
+        os.system("clear")
+    elif system_name == "Windows": 
+        os.system("cls")
 
 # Renvoie la liste la plus petite (si égale renvoie L1)
 def minList(L1 : list[any] , L2 : list[any]) -> list[any]:
